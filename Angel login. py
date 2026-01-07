@@ -1,0 +1,24 @@
+from smartapi import SmartConnect
+import pyotp
+
+def angel_login_user(user):
+    try:
+        angel = SmartConnect(api_key=user["api_key"])
+        otp = pyotp.TOTP(user["totp"]).now()
+
+        data = angel.generateSession(
+            user["client"],
+            user["pin"],
+            otp
+        )
+
+        if not data["status"]:
+            return False, "❌ Login failed"
+
+        angel.generateToken(data["data"]["refreshToken"])
+        user["angel"] = angel
+        user["logged_in"] = True
+        return True, "✅ Angel One login successful"
+
+    except Exception as e:
+        return False, f"❌ Error: {e}"
