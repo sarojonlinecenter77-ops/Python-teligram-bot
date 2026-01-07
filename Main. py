@@ -1,0 +1,77 @@
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
+)
+
+from user_manager import get_user
+from angel_login_flow import angel_login_user
+
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+
+# ===== MENU =====
+def menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔐 LOGIN", callback_data="login")]
+    ])
+
+# ===== START =====
+def start(update, context):
+    update.message.reply_text(
+        "🤖 Trading Bot\n\nClick LOGIN to connect your Angel One account",
+        reply_markup=menu()
+    )
+
+# ===== BUTTON HANDLER =====
+def buttons(update, context):
+    q = update.callback_query
+    q.answer()
+    user = get_user(q.from_user.id)
+
+    if q.data == "login":
+        user["step"] = "API_KEY"
+        q.edit_message_text("🔑 Enter your *API KEY*:")
+
+# ===== TEXT HANDLER (CONVERSATION) =====
+def text_handler(update, context):
+    user = get_user(update.message.from_user.id)
+    text = update.message.text.strip()
+
+    if user["step"] == "API_KEY":
+        user["api_key"] = text
+        user["step"] = "CLIENT"
+        update.message.reply_text("👤 Enter *Client Code*:")
+
+    elif user["step"] == "CLIENT":
+        user["client"] = text
+        user["step"] = "PIN"
+        update.message.reply_text("🔐 Enter *4-digit PIN*:")
+
+    elif user["step"] == "PIN":
+        user["pin"] = text
+        user["step"] = "TOTP"
+        update.message.reply_text("📲 Enter *TOTP Secret*:")
+
+    elif user["step"] == "TOTP":
+        user["totp"] = text
+        user["step"] = None
+
+        ok, msg = angel_login_user(user)
+        update.message.reply_text(msg)
+
+    else:
+        update.message.reply_text("Use /start to begin")
+
+# ===== RUN =====
+def main():
+    up = Updater(TOKEN, use_context=True)
+    dp = up.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CallbackQueryHandler(buttons))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, text_handler))
+
+    up.start_polling()
+    up.idle()
+
+if __name__ == "__main__":
+    main()
