@@ -1,0 +1,14 @@
+USERS = {}
+
+def get_user(user_id):
+    if user_id not in USERS:
+        USERS[user_id] = {
+            "step": None,
+            "api_key": None,
+            "client": None,
+            "pin": None,
+            "totp": None,
+            "angel": None,
+            "logged_in": False
+        }
+    return USERS[user_id]
